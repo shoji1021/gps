@@ -195,7 +195,7 @@
   </main>
 
 <script>
-const DISTANCE_THRESHOLD = 20; // m
+const DISTANCE_THRESHOLD = 100; // m
 
 const homeLatInput = document.getElementById('home-lat');
 const homeLngInput = document.getElementById('home-lng');
@@ -211,6 +211,44 @@ const setupSection = document.getElementById('setup-section');
 const LS_HOME_LAT = 'homeLatitude';
 const LS_HOME_LNG = 'homeLongitude';
 const LS_CHECKLIST = 'checklistItems';
+
+// 通知の許可を求める
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('このブラウザは通知に対応していません。');
+    return false;
+  }
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+  return false;
+}
+
+// Service Worker登録
+async function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered', reg);
+      return reg;
+    } catch (e) {
+      console.error('Service Worker登録失敗:', e);
+    }
+  }
+  return null;
+}
+
+// 通知表示
+function showNotification(title, options) {
+  if (Notification.permission === 'granted') {
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg) reg.showNotification(title, options);
+      else new Notification(title, options);
+    });
+  }
+}
 
 function toRad(deg) { return deg * Math.PI / 180; }
 
@@ -262,7 +300,18 @@ function renderChecklist() {
   });
 }
 
-function checkDistance() {
+// 通知用の制御フラグ（通知を連続で送りすぎないためのクールダウン）
+let lastNotifyTime = 0;
+const NOTIFY_COOLDOWN_MS = 5 * 60 * 1000; // 5分間隔で通知可能
+
+async function checkDistanceAndNotify() {
+  const hasPermission = await requestNotificationPermission();
+  if (!hasPermission) {
+    distanceInfo.textContent = '通知の許可が必要です。';
+    return;
+  }
+  await registerServiceWorker();
+
   const homeLat = parseFloat(localStorage.getItem(LS_HOME_LAT));
   const homeLng = parseFloat(localStorage.getItem(LS_HOME_LNG));
   if (isNaN(homeLat) || isNaN(homeLng)) {
@@ -281,8 +330,18 @@ function checkDistance() {
       const curLng = pos.coords.longitude;
       const dist = getDistance(homeLat, homeLng, curLat, curLng);
       distanceInfo.textContent = `現在地は自宅から約 ${dist.toFixed(1)} m 離れています。`;
-      if (dist > DISTANCE_THRESHOLD) {
+
+      if (dist > DISTANCE_THRESHOLD / 2) {
         checklistDiv.classList.remove('hidden');
+        const now = Date.now();
+        if (now - lastNotifyTime > NOTIFY_COOLDOWN_MS) {
+          lastNotifyTime = now;
+          showNotification('忘れ物チェック', {
+            body: `自宅から${dist.toFixed(1)}m離れています。忘れ物がないか確認してね！`,
+            icon: '/icon.png',
+            vibrate: [200, 100, 200],
+          });
+        }
       } else {
         checklistDiv.classList.add('hidden');
       }
@@ -321,9 +380,9 @@ btnSaveHome.addEventListener('click', () => {
   localStorage.setItem(LS_HOME_LNG, lng);
   alert('自宅の位置を保存しました。');
   setupSection.classList.add('hidden');
-  checkDistance();
+  checkDistanceAndNotify();
   renderChecklist();
-  setInterval(checkDistance, 60 * 1000);
+  setInterval(checkDistanceAndNotify, 60 * 1000);
 });
 
 btnAddItem.addEventListener('click', () => {
@@ -344,8 +403,8 @@ window.addEventListener('load', () => {
     homeLngInput.value = lng;
     setupSection.classList.add('hidden');
     renderChecklist();
-    checkDistance();
-    setInterval(checkDistance, 60 * 1000);
+    checkDistanceAndNotify();
+    setInterval(checkDistanceAndNotify, 60 * 1000);
   }
 });
 </script>
