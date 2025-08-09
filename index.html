@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>位置連動忘れ物チェック</title>
+  <style>
+    body { 
+    font-family: sans-serif;
+    padding: 1rem;
+    max-width: 480px;
+    margin: auto;
+}
+    h1 {
+    color: #2c3e50;
+}
+    label {
+    display: block;
+    margin-top: 1rem;
+}
+    input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 0.4rem;
+    margin-top: 0.3rem; }
+    button {
+    margin-top: 1rem;
+    padding: 0.6rem 1rem;
+    background: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+    button:disabled {
+    background: #95a5a6;
+    cursor: default;
+}
+    #checklist {
+    margin-top: 2rem;
+}
+    .hidden {
+    display: none;
+}
+    ul {
+    padding-left: 1.2rem;
+}
+    li {
+    margin-bottom: 0.4rem;
+}
+  </style>
+</head>
+<body>
+
+<h1>位置連動忘れ物チェック</h1>
+
+<div id="setup-section">
+  <p>自宅の位置を設定してください（手入力か「現在地取得」ボタンで）:</p>
+  <label>
+    緯度 (latitude)
+    <input type="number" step="0.000001" id="home-lat" placeholder="例: 35.6895" />
+  </label>
+  <label>
+    経度 (longitude)
+    <input type="number" step="0.000001" id="home-lng" placeholder="例: 139.6917" />
+  </label>
+  <button id="btn-get-location">現在地取得</button>
+  <button id="btn-save-home">設定を保存</button>
+</div>
+
+<div id="distance-info" class="hidden"></div>
+
+<div id="checklist" class="hidden">
+  <h2>忘れ物チェックリスト</h2>
+  <ul id="items-list"></ul>
+  <input type="text" id="new-item" placeholder="忘れ物アイテムを追加" />
+  <button id="btn-add-item">追加</button>
+</div>
+
+<script>
+// ----- 定数 -----
+const DISTANCE_THRESHOLD = 20; 
+
+// ----- 要素 -----
+const homeLatInput = document.getElementById('home-lat');
+const homeLngInput = document.getElementById('home-lng');
+const btnGetLocation = document.getElementById('btn-get-location');
+const btnSaveHome = document.getElementById('btn-save-home');
+const distanceInfo = document.getElementById('distance-info');
+const checklistDiv = document.getElementById('checklist');
+const itemsList = document.getElementById('items-list');
+const newItemInput = document.getElementById('new-item');
+const btnAddItem = document.getElementById('btn-add-item');
+const setupSection = document.getElementById('setup-section');
+
+// ----- ローカルストレージキー -----
+const LS_HOME_LAT = 'homeLatitude';
+const LS_HOME_LNG = 'homeLongitude';
+const LS_CHECKLIST = 'checklistItems';
+
+// ----- ユーティリティ -----
+function toRad(deg) { return deg * Math.PI / 180; }
+
+// ハーサイン距離計算（地球上の２点間距離をメートルで返す）
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // 地球半径(m)
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// ----- 忘れ物リスト操作 -----
+function loadChecklist() {
+  const json = localStorage.getItem(LS_CHECKLIST);
+  if (!json) return [];
+  try {
+    return JSON.parse(json);
+  } catch {
+    return [];
+  }
+}
+function saveChecklist(items) {
+  localStorage.setItem(LS_CHECKLIST, JSON.stringify(items));
+}
+function renderChecklist() {
+  const items = loadChecklist();
+  itemsList.innerHTML = '';
+  items.forEach((item, idx) => {
+    const li = document.createElement('li');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `chk-${idx}`;
+    checkbox.checked = false;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        items.splice(idx,1);
+        saveChecklist(items);
+        renderChecklist();
+      }
+    });
+    const label = document.createElement('label');
+    label.htmlFor = checkbox.id;
+    label.textContent = item;
+    li.appendChild(checkbox);
+    li.appendChild(label);
+    itemsList.appendChild(li);
+  });
+}
+
+// ----- 現在地取得＆距離計算 -----
+function checkDistance() {
+  const homeLat = parseFloat(localStorage.getItem(LS_HOME_LAT));
+  const homeLng = parseFloat(localStorage.getItem(LS_HOME_LNG));
+  if (isNaN(homeLat) || isNaN(homeLng)) {
+    distanceInfo.textContent = '自宅の位置が設定されていません。';
+    checklistDiv.classList.add('hidden');
+    return;
+  }
+  if (!navigator.geolocation) {
+    distanceInfo.textContent = 'お使いのブラウザは位置情報をサポートしていません。';
+    checklistDiv.classList.add('hidden');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const curLat = pos.coords.latitude;
+      const curLng = pos.coords.longitude;
+      const dist = getDistance(homeLat, homeLng, curLat, curLng);
+      distanceInfo.textContent = `現在地は自宅から約 ${dist.toFixed(1)} m 離れています。`;
+      if (dist > DISTANCE_THRESHOLD) {
+        checklistDiv.classList.remove('hidden');
+      } else {
+        checklistDiv.classList.add('hidden');
+      }
+    },
+    (err) => {
+      distanceInfo.textContent = '位置情報の取得に失敗しました。許可を確認してください。';
+      checklistDiv.classList.add('hidden');
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+  );
+}
+
+// ----- イベント登録 -----
+btnGetLocation.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('位置情報APIが利用できません。');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      homeLatInput.value = pos.coords.latitude.toFixed(6);
+      homeLngInput.value = pos.coords.longitude.toFixed(6);
+    },
+    () => alert('現在地の取得に失敗しました。'),
+    { enableHighAccuracy: true }
+  );
+});
+
+btnSaveHome.addEventListener('click', () => {
+  const lat = parseFloat(homeLatInput.value);
+  const lng = parseFloat(homeLngInput.value);
+  if (isNaN(lat) || isNaN(lng)) {
+    alert('有効な緯度・経度を入力してください。');
+    return;
+  }
+  localStorage.setItem(LS_HOME_LAT, lat);
+  localStorage.setItem(LS_HOME_LNG, lng);
+  alert('自宅の位置を保存しました。');
+  setupSection.classList.add('hidden');
+  checkDistance();
+  renderChecklist();
+  // 以降、位置を定期チェック（1分毎）
+  setInterval(checkDistance, 60 * 1000);
+});
+
+// 忘れ物リスト追加
+btnAddItem.addEventListener('click', () => {
+  const item = newItemInput.value.trim();
+  if (!item) return;
+  const items = loadChecklist();
+  items.push(item);
+  saveChecklist(items);
+  newItemInput.value = '';
+  renderChecklist();
+});
+
+// 初期表示
+window.addEventListener('load', () => {
+  const lat = localStorage.getItem(LS_HOME_LAT);
+  const lng = localStorage.getItem(LS_HOME_LNG);
+  if (lat && lng) {
+    homeLatInput.value = lat;
+    homeLngInput.value = lng;
+    setupSection.classList.add('hidden');
+    renderChecklist();
+    checkDistance();
+    setInterval(checkDistance, 60 * 1000);
+  }
+});
+</script>
+
+</body>
+</html>
