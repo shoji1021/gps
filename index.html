@@ -6,81 +6,197 @@
   <link rel="icon" href="image/gps.ico">
   <title>位置連動忘れ物チェック</title>
   <style>
-    body { 
-    font-family: sans-serif;
-    padding: 1rem;
-    max-width: 480px;
-    margin: auto;
-}
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap');
+
+    :root {
+      --bg-color: #121212;
+      --primary-color: #1e88e5;
+      --primary-hover: #1565c0;
+      --text-color: #e0e0e0;
+      --card-bg: #1f1f1f;
+      --border-radius: 12px;
+      --shadow-color: rgba(0, 0, 0, 0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Roboto Mono', monospace, monospace;
+      margin: 0;
+      padding: 2rem 1rem;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 480px;
+      width: 100%;
+    }
+
     h1 {
-    color: #2c3e50;
-}
+      font-weight: 700;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: var(--primary-color);
+      text-shadow: 0 0 8px var(--primary-color);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 1.5rem 2rem;
+      box-shadow: 0 6px 12px var(--shadow-color);
+      margin-bottom: 1.5rem;
+    }
+
     label {
-    display: block;
-    margin-top: 1rem;
-}
-    input[type="text"], input[type="number"] {
-    width: 100%;
-    padding: 0.4rem;
-    margin-top: 0.3rem; }
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+      user-select: none;
+      color: #bbb;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem 0.9rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      background-color: #2c2c2c;
+      color: var(--text-color);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.7);
+      transition: background-color 0.3s ease;
+    }
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      background-color: #383838;
+      outline: none;
+      box-shadow: 0 0 8px var(--primary-color);
+    }
+
     button {
-    margin-top: 1rem;
-    padding: 0.6rem 1rem;
-    background: #3498db;
-    color: white;
-    border: none;
-    cursor: pointer;
-}
+      margin-top: 1rem;
+      padding: 0.65rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      background-color: var(--primary-color);
+      border: none;
+      border-radius: 32px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px var(--primary-color);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      user-select: none;
+      display: inline-block;
+    }
+    button:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      box-shadow: 0 6px 14px var(--primary-hover);
+    }
     button:disabled {
-    background: #95a5a6;
-    cursor: default;
-}
-    #checklist {
-    margin-top: 2rem;
-}
-    .hidden {
-    display: none;
-}
-    ul {
-    padding-left: 1.2rem;
-}
-    li {
-    margin-bottom: 0.4rem;
-}
+      background-color: #555;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    #distance-info {
+      text-align: center;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #aaa;
+    }
+
+    #checklist ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    #checklist li {
+      background-color: #2a2a2a;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    #checklist li:hover {
+      background-color: #3a3a3a;
+    }
+    #checklist input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+      flex-shrink: 0;
+    }
+
+    #new-item {
+      margin-top: 0.6rem;
+      width: calc(100% - 6rem);
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    #btn-add-item {
+      width: 4.5rem;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+      main {
+        padding: 0 1rem;
+      }
+    }
   </style>
 </head>
 <body>
+  <main>
+    <h1>位置連動忘れ物チェック</h1>
 
-<h1>位置連動忘れ物チェック</h1>
+    <section id="setup-section" class="card">
+      <p>自宅の位置を設定してください（手入力か「現在地取得」ボタンで）:</p>
+      <label>
+        緯度 (latitude)
+        <input type="number" step="0.000001" id="home-lat" placeholder="例: 35.6895" />
+      </label>
+      <label>
+        経度 (longitude)
+        <input type="number" step="0.000001" id="home-lng" placeholder="例: 139.6917" />
+      </label>
+      <button id="btn-get-location">現在地取得</button>
+      <button id="btn-save-home">設定を保存</button>
+    </section>
 
-<div id="setup-section">
-  <p>自宅の位置を設定してください（手入力か「現在地取得」ボタンで）</p>
-  <label>
-    緯度 (latitude)
-    <input type="number" step="0.000001" id="home-lat" placeholder="例: 35.6895" />
-  </label>
-  <label>
-    経度 (longitude)
-    <input type="number" step="0.000001" id="home-lng" placeholder="例: 139.6917" />
-  </label>
-  <button id="btn-get-location">現在地取得</button>
-  <button id="btn-save-home">設定を保存</button>
-</div>
+    <div id="distance-info"></div>
 
-<div id="distance-info" class="hidden"></div>
-
-<div id="checklist" class="hidden">
-  <h2>忘れ物チェックリスト</h2>
-  <ul id="items-list"></ul>
-  <input type="text" id="new-item" placeholder="忘れ物アイテムを追加" />
-  <button id="btn-add-item">追加</button>
-</div>
+    <section id="checklist" class="card hidden">
+      <h2>忘れ物チェックリスト</h2>
+      <ul id="items-list"></ul>
+      <input type="text" id="new-item" placeholder="忘れ物アイテムを追加" />
+      <button id="btn-add-item">追加</button>
+    </section>
+  </main>
 
 <script>
-// ----- 定数 -----
-const DISTANCE_THRESHOLD = 20; 
+const DISTANCE_THRESHOLD = 20; // m
 
-// ----- 要素 -----
 const homeLatInput = document.getElementById('home-lat');
 const homeLngInput = document.getElementById('home-lng');
 const btnGetLocation = document.getElementById('btn-get-location');
@@ -92,17 +208,14 @@ const newItemInput = document.getElementById('new-item');
 const btnAddItem = document.getElementById('btn-add-item');
 const setupSection = document.getElementById('setup-section');
 
-// ----- ローカルストレージキー -----
 const LS_HOME_LAT = 'homeLatitude';
 const LS_HOME_LNG = 'homeLongitude';
 const LS_CHECKLIST = 'checklistItems';
 
-// ----- ユーティリティ -----
 function toRad(deg) { return deg * Math.PI / 180; }
 
-// ハーサイン距離計算（地球上の２点間距離をメートルで返す）
 function getDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000; // 地球半径(m)
+  const R = 6371000;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   const a =
@@ -112,7 +225,6 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-// ----- 忘れ物リスト操作 -----
 function loadChecklist() {
   const json = localStorage.getItem(LS_CHECKLIST);
   if (!json) return [];
@@ -150,7 +262,6 @@ function renderChecklist() {
   });
 }
 
-// ----- 現在地取得＆距離計算 -----
 function checkDistance() {
   const homeLat = parseFloat(localStorage.getItem(LS_HOME_LAT));
   const homeLng = parseFloat(localStorage.getItem(LS_HOME_LNG));
@@ -184,7 +295,6 @@ function checkDistance() {
   );
 }
 
-// ----- イベント登録 -----
 btnGetLocation.addEventListener('click', () => {
   if (!navigator.geolocation) {
     alert('位置情報APIが利用できません。');
@@ -213,11 +323,9 @@ btnSaveHome.addEventListener('click', () => {
   setupSection.classList.add('hidden');
   checkDistance();
   renderChecklist();
-  // 以降、位置を定期チェック（1分毎）
   setInterval(checkDistance, 60 * 1000);
 });
 
-// 忘れ物リスト追加
 btnAddItem.addEventListener('click', () => {
   const item = newItemInput.value.trim();
   if (!item) return;
@@ -228,7 +336,6 @@ btnAddItem.addEventListener('click', () => {
   renderChecklist();
 });
 
-// 初期表示
 window.addEventListener('load', () => {
   const lat = localStorage.getItem(LS_HOME_LAT);
   const lng = localStorage.getItem(LS_HOME_LNG);
