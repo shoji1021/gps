@@ -81,6 +81,9 @@
       outline: none;
       box-shadow: 0 0 8px var(--primary-color);
     }
+    .meters{
+      margin-top: 0.7rem;
+    }
 
     button {
       margin-top: 1rem;
@@ -155,6 +158,11 @@
       width: 4.5rem;
       vertical-align: middle;
     }
+    #meters{
+      width: calc(100% - 6rem);
+      display: inline-block;
+      vertical-align: middle;
+    }
 
     @media (max-width: 520px) {
       body {
@@ -182,6 +190,10 @@
       </label>
       <button id="btn-get-location">現在地取得</button>
       <button id="btn-save-home">設定を保存</button>
+      <label class="meters">
+         何メートル以上離れたら通知するか(毎回)
+      <input type="number" id="meters" placeholder="例: 10" />
+      </label>
     </section>
 
     <div id="distance-info"></div>
@@ -195,7 +207,8 @@
   </main>
 
 <script>
-const DISTANCE_THRESHOLD = 20; // m
+const DISTANCE_THRESHOLD = document.getElementById('meters'); // m
+
 
 const homeLatInput = document.getElementById('home-lat');
 const homeLngInput = document.getElementById('home-lng');
@@ -331,7 +344,7 @@ async function checkDistanceAndNotify() {
       const dist = getDistance(homeLat, homeLng, curLat, curLng);
       distanceInfo.textContent = `現在地は自宅から約 ${dist.toFixed(1)} m 離れています。`;
 
-      if (dist > DISTANCE_THRESHOLD / 2) {
+      if (dist > DISTANCE_THRESHOLD) {
         checklistDiv.classList.remove('hidden');
         const now = Date.now();
         if (now - lastNotifyTime > NOTIFY_COOLDOWN_MS) {
